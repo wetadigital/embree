@@ -85,11 +85,19 @@ If you do not have one setup, a maintainer _might_ do it for you if you ask nice
 How to build & compile
 ----------------------
 
-# TODO
+```sh
+source build.env 
+waf configure
+waf
+```
+
+at that point, you should have a full build, and a pak you can oz in.
 
 
 How to release
 --------------
 
-# TODO
-     
+On Gitlab - create a tag on the relevant `weta/RB-X.Y.Z` branch, representing your
+version you want to release e.g. `weta/x.y.z-weta.w`
+
+This tag will run the release via CI!
