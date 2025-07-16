@@ -252,7 +252,7 @@ def build(bld):
                     "Teams": "https://teams.microsoft.com/l/channel/19%3A9464d1bfef714b7cb94b88c7feaa86fc%40thread.skype/build-test-deployment?groupId=b544b9ae-752e-45f6-843d-49fb0317a731&tenantId=5ecba919-6cf8-411b-a462-db882331fd21",
                 },
                 "third_party": True,
-                "license": "Apache 2.0",
+                "license": "Apache-2.0",
             },
             description="set/refresh the app metadata",
         )
