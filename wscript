@@ -65,30 +65,46 @@ def build_requirement_range(conf: waflib.Configure.ConfigurationContext, lower_b
 
 
 @waflib.Configure.conf
-def build_requirement_range_from_env(conf: waflib.Configure.ConfigurationContext, app: str, limit: str):
-    """ Get an oz requirement range using the version of an app in the configured environment as a lower bound
-    and the provided ``limit`` to determine the upper bound.
+def aggregate_ranges(conf: waflib.Configure.ConfigurationContext, app: str, limit: str) -> str:
+    """ Get an oz requirement range for the provided ``app`` that is an aggregate of every buildmatrix variant
+    that has been configured.
 
-    This range can then be used in makePak so the pak requires the appropriate versions based on what we built against.
+    For each buildmatrix variant, the version of the ``app`` in the configured environment is used as the 
+    lower bound and the provided ``limit`` is used to determine the upper bound. For example, if we have 
+    2 buildmatrix variants, one that oz'ed WetaVFXPlatform-2022.0.15 and another that oz'ed WetaVFXPlatform-2023.0.6,
+    if ``limit="major"`` this function will aggregate those into the following range: "2022.0.15<2023|2023.0.6<2024"
+
+    The resulting range can be used in makePak so the pak requires the appropriate versions 
+    based on what we built against.
 
     Args:
         conf: The current wak configuration context.
         app: The oz app to build a requirement range for
         limit: Which semantic version component to use as the upper bound of the requirement range.
             This can be one of "major", "minor", or "patch".
-            For example, if the build env contains version "1.2.3" and limit="major" then the result range 
+            For example, if the buildmatrix variant env contains version "1.2.3" and limit="major" then the result range 
             will be "1.2.3<2" whereas limit="minor" would result in "1.2.3<1.3"
 
     Returns:
-        A requirement range like "1.2.3<2" where the version in ``build_env`` is used as the lower bound 
-        and ``limit`` is used to determine the upper bound.
+        A requirement range like "1.2.3<2" that can be used in ``makePak`` calls to make sure pak requirements 
+        match what we actually built against.
     """
-    all_paks = oz.Oz.get_app_versions_from_oz_env(conf.env.env)
-    pak_lut = dict([oz.AppVersion.split_name(pak) for pak in all_paks])
-    if app not in pak_lut:
+    ranges = []
+    for variantEnv in conf.all_envs.values():
+        if "buildmatrix_variant" not in variantEnv:
+            continue
+        all_paks = oz.Oz.get_app_versions_from_oz_env(variantEnv.env)
+        pak_lut = dict([oz.AppVersion.split_name(pak) for pak in all_paks])
+        if app not in pak_lut:
+            continue
+        lower_bound = pak_lut[app]
+        requirement_range = conf.build_requirement_range(lower_bound, limit)
+        if requirement_range not in ranges:  # deduplicate in case there are multiple variants with the same range
+            ranges.append(requirement_range)
+
+    if not ranges:
         raise EnvironmentError(f"Could not find {app} in build env")
-    lower_bound = pak_lut[app]
-    return conf.build_requirement_range(lower_bound, limit)
+    return "|".join(ranges)
 
 
 def configure(conf):
@@ -108,8 +124,7 @@ def configure(conf):
     conf.env.WAK_STAGED_RELEASE_SRC_PERMS = "0444"
 
     # Setup build variants for each VFX Platform and run cmakeGenerate for each
-    requirement_ranges = collections.defaultdict(list)
-    for variant in conf.buildmatrix_make_variants("WetaVFXPlatform"):
+    for _ in conf.buildmatrix_make_variants("WetaVFXPlatform"):
         conf.buildmatrix_oz(
             area="/", 
             limits=[
@@ -125,10 +140,6 @@ def configure(conf):
                 "tbb",
             ]
         )
-        
-        # accumulate ranges for pak requirements that we'll pass to makeLibPak below
-        requirement_ranges["WetaVFXPlatform"].append(conf.build_requirement_range_from_env("WetaVFXPlatform", limit="major"))
-        requirement_ranges["tbb"].append(conf.build_requirement_range_from_env("tbb", limit="minor"))
 
         # generate cmake files to build later
         conf.load("compiler_cxx")
@@ -179,6 +190,8 @@ def configure(conf):
         )
 
     # Make the lib pak
+    platform_range = conf.aggregate_ranges("WetaVFXPlatform", limit="major")
+    tbb_range = conf.aggregate_ranges("tbb", limit="minor")
     conf.makeLibPak(
         name=conf.env.WAK_APP_NAME,
         version=conf.env.WAK_APP_VERSION,
@@ -188,8 +201,8 @@ def configure(conf):
         lib="embree3",
         libpath=["${PREFIX}/WetaVFXPlatform-%(WETA_VFXPLATFORM_ID)s/lib"],
         requires={
-            "WetaVFXPlatform": {"ver_range": "|".join(requirement_ranges["WetaVFXPlatform"])},
-            "tbb": {"ver_range": "|".join(requirement_ranges["tbb"])},
+            "WetaVFXPlatform": {"ver_range": platform_range},
+            "tbb": {"ver_range": tbb_range},
         },
         variables={
             "LD_LIBRARY_PATH": {
@@ -198,8 +211,8 @@ def configure(conf):
             }
         },
         buildRequires={
-            "WetaVFXPlatform": {"ver_range": "|".join(requirement_ranges["WetaVFXPlatform"])},
-            "tbb": {"ver_range": "|".join(requirement_ranges["tbb"])},
+            "WetaVFXPlatform": {"ver_range": platform_range},
+            "tbb": {"ver_range": tbb_range},
         },
         buildActions={
             "Embree_ROOT": {
