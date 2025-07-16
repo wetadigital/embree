@@ -5,13 +5,13 @@ default:
 
 # Components to include
 include:
-  - component: $CI_SERVER_HOST/habitat/ci-components/wak-components/deploy@~latest
+  - component: $CI_SERVER_HOST/habitat/ci-components/wak-components/deploy@1
     inputs:
       job-name: full_build_test
-  - component: $CI_SERVER_HOST/habitat/ci-components/wak-components/release_from_tag@~latest
+  - component: $CI_SERVER_HOST/habitat/ci-components/wak-components/release_from_tag@1
     inputs:
       wak-tag-prefix: weta/
-  - component: $CI_SERVER_HOST/habitat/ci-components/wak-components/deploy_custom_version@~latest
+  - component: $CI_SERVER_HOST/habitat/ci-components/wak-components/deploy_custom_version@1
     inputs:
       wak-tag-prefix: weta/
 
