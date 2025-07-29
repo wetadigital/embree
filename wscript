@@ -159,6 +159,7 @@ def configure(conf):
             #       * There is a typo in the target name.
             #       * A find_package call is missing for an IMPORTED target.
             #       * An ALIAS target is missing.
+            # TODO: HABITAT-742 update to support CMAKE_LINK_LIBRARIES_ONLY_TARGETS="ON"
             CMAKE_LINK_LIBRARIES_ONLY_TARGETS="OFF",
 
             BUILD_TESTING="OFF",
