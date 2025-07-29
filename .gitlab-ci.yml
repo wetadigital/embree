@@ -2,6 +2,11 @@ default:
   tags:
     - shared-runner:nfs
 
+# bump CI machine resources since the defaults were timing out after 1hr but the build runs in <6mins locally.
+# Defaults are KUBERNETES_CPU_LIMIT="2" and KUBERNETES_MEMORY_REQUEST="1Gi"
+variables:
+  KUBERNETES_CPU_LIMIT: "4"
+  KUBERNETES_MEMORY_REQUEST: "2Gi"
 
 # Components to include
 include:
