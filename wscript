@@ -109,6 +109,7 @@ def aggregate_ranges(conf: waflib.Configure.ConfigurationContext, app: str, limi
 
 def configure(conf):
     conf.env.WAK_NON_CI_RELEASE_CMDS = ["tag"]
+    conf.env.WAK_SCM_TAG_PREFIX = "weta/"  # so our internal release tags don't clash with external OSS tags
 
     conf.load("wak.tools")
     conf.load("wak.tools.deploySource")
